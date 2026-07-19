@@ -12,7 +12,7 @@ authors = ["Ivan Molodetskikh <yalterz@gmail.com>"]
 license = "GPL-3.0-or-later"
 edition = "2021"
 repository = "https://github.com/niri-wm/niri"
-rust-version = "1.85"
+rust-version = "1.87"
 
 [workspace.dependencies]
 anyhow = "1.0.102"
@@ -28,13 +28,13 @@ tracy-client = { version = "0.18.4", default-features = false }
 [workspace.dependencies.smithay]
 # version = "0.4.1"
 git = "https://github.com/Smithay/smithay.git"
-rev = "0d14cd655f6e905ad5110ff0384400da223f2cab"
+rev = "cdc03f73ce57d3352c0c57a69971e3e16544051c"
 default-features = false
 
 [workspace.dependencies.smithay-drm-extras]
 # version = "0.1.0"
 git = "https://github.com/Smithay/smithay.git"
-rev = "0d14cd655f6e905ad5110ff0384400da223f2cab"
+rev = "cdc03f73ce57d3352c0c57a69971e3e16544051c"
 # path = "../smithay/smithay-drm-extras"
 
 [package]

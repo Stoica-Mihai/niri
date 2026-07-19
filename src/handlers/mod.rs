@@ -187,6 +187,19 @@ impl PointerConstraintsHandler for State {
                 output_geometry.size -= (1, 1).into();
                 (origin + location).constrain(output_geometry.to_f64())
             });
+        self.niri.pointer_constraint_position_hint = Some(target);
+    }
+
+    fn remove_constraint(&mut self, _surface: &WlSurface, pointer: &PointerHandle<Self>) {
+        // Since a pointer constraint is broken when a surface loses pointer focus, and one surface
+        // can only have a single pointer constraint at once, assume there can be only one
+        // constraint active at once, and therefore the global position hint should come from that
+        // one constraint that just got removed.
+        let Some(target) = self.niri.pointer_constraint_position_hint.take() else {
+            // The client never sent a position hint.
+            return;
+        };
+
         pointer.set_location(target);
 
         // Redraw to update the cursor position if it's visible.
