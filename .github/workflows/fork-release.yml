@@ -1,0 +1,76 @@
+name: Fork release
+
+# Builds the fork niri binary in an Arch container (matches Arch/CachyOS, unlike
+# the Ubuntu CI) and attaches it to a GitHub Release.
+#   - push a tag `mcs-v<rev>` (e.g. mcs-v1), or
+#   - run manually with a rev input.
+# Version string baked in = "<niri-base-tag>+mcs.<rev>", same scheme as build-fork.sh.
+
+on:
+  push:
+    tags: ['mcs-v*']
+  workflow_dispatch:
+    inputs:
+      rev:
+        description: 'Fork rev number (creates tag mcs-v<rev>)'
+        required: true
+        default: '1'
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    permissions:
+      contents: write
+    steps:
+      # nodejs must be present before any JS action (actions/checkout) runs in the container.
+      - name: Install toolchain + deps
+        run: |
+          pacman -Syu --noconfirm --needed \
+            git base-devel nodejs tar gzip \
+            rust clang pkgconf \
+            wayland wayland-protocols libxkbcommon libinput mesa seatd \
+            systemd-libs pipewire pango cairo libdisplay-info libadwaita dbus
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version + tag
+        id: v
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          BASE=$(git describe --tags --abbrev=0 --match 'v[0-9]*')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            REV="${{ github.event.inputs.rev }}"
+            TAG="mcs-v${REV}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            REV="${TAG#mcs-v}"
+          fi
+          echo "ver=${BASE#v}+mcs.${REV}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: NIRI_BUILD_VERSION_STRING="${{ steps.v.outputs.ver }}" cargo build --release --locked
+
+      - name: Package
+        run: |
+          cd target/release
+          tar czf "$GITHUB_WORKSPACE/niri-${{ steps.v.outputs.ver }}-x86_64-arch.tar.gz" niri
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.v.outputs.tag }}
+          name: niri ${{ steps.v.outputs.ver }}
+          body: |
+            Fork build of niri with the `background-render-fps` feature.
+
+            Version: `${{ steps.v.outputs.ver }}`. Built in an Arch Linux container
+            (glibc), so it targets Arch/CachyOS. If it fails to run due to library
+            drift, build locally with `./build-fork.sh` — that always matches your system.
+
+            Install: `sudo install -Dm755 niri /usr/local/bin/niri`, then relog.
+          files: niri-*-x86_64-arch.tar.gz
+          fail_on_unmatched_files: true

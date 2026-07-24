@@ -1,8 +1,9 @@
 # Fork changes
 
 Personal fork of [niri](https://github.com/niri-wm/niri) carrying features that are **not
-upstream** (and, where noted, were explicitly declined upstream). Branch `background-render`,
-based on a niri **release tag** (rebased forward on each release — never on `main`).
+upstream** (and, where noted, were explicitly declined upstream). Trunk branch `main`, based
+on a niri **release tag** (rebased forward on each release — never on upstream's `main`; niri's
+tags are cut from main, so a release tag is just main at a stable checkpoint).
 
 Not intended for upstream merge. See per-feature notes for rationale.
 
@@ -48,15 +49,26 @@ and live on DRM/NVIDIA with a real game.
 
 ## Maintenance
 
-- **Base:** a release tag, not `main`. GitHub showing "N commits behind" vs upstream `main`
-  is expected and irrelevant — do **not** "Sync fork".
+- **Remotes:** `origin` = upstream `niri-wm/niri` (fetch tags), `fork` = your GitHub fork
+  (push; `main` tracks `fork/main`).
+- **Base:** a release tag, not upstream `main`. GitHub showing "N commits behind" vs upstream
+  `main` is expected and irrelevant — do **not** "Sync fork".
 - **Rebase on a new niri release:**
   ```sh
   git fetch origin --tags
-  git rebase <new-tag> background-render
-  cargo build --release
-  sudo install -Dm755 target/release/niri /usr/local/bin/niri   # takes PATH precedence
-  git push -f fork background-render                              # keep the offsite backup current
+  git rebase <new-tag> main
+  ./build-fork.sh <rev>            # build + install with version <base>+mcs.<rev>
+  git push -f fork main            # keep the offsite backup current
   # log out / back in to activate the new binary
   ```
 - **Install model:** `/usr/local/bin/niri` shadows the packaged `/usr/bin/niri`; revert = `rm`.
+
+## Releases (CI)
+
+- **Local (most reliable):** `./build-fork.sh [rev]` — builds + installs, version string
+  `<niri-base>+mcs.<rev>`. Matches your exact system.
+- **CI build/test gate:** `.github/workflows/ci.yml` (inherited) builds + tests every push.
+  On a fork this must be enabled once in the repo's **Actions** tab.
+- **CI binary release:** `.github/workflows/fork-release.yml` — push a tag `mcs-v<rev>`
+  (or run it manually) to build in an Arch container and attach the binary to a GitHub
+  Release. Arch/CachyOS-targeted; if library drift breaks it, fall back to `build-fork.sh`.
