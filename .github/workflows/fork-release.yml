@@ -17,7 +17,38 @@ on:
         default: '1'
 
 jobs:
+  # Don't publish a release for a commit whose CI is failing or unfinished. Cross-workflow `needs:`
+  # doesn't exist, so poll the CI run for this exact commit instead.
+  verify-ci:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require green CI for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          for attempt in $(seq 1 90); do
+            read -r status conclusion <<<"$(
+              gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$SHA&per_page=1" \
+                --jq '.workflow_runs[0] | "\(.status // "missing") \(.conclusion // "pending")"'
+            )"
+            echo "attempt $attempt: status=$status conclusion=$conclusion"
+
+            if [ "$status" = completed ]; then
+              [ "$conclusion" = success ] && exit 0
+              echo "::error::CI concluded '$conclusion' for $SHA; refusing to release."
+              exit 1
+            fi
+
+            sleep 20
+          done
+
+          echo "::error::timed out waiting for CI to finish for $SHA."
+          exit 1
+
   release:
+    needs: verify-ci
     runs-on: ubuntu-24.04
     container: archlinux:latest
     permissions:

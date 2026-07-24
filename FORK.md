@@ -113,3 +113,5 @@ the first is actually discriminating.
 - **CI binary release:** `.github/workflows/fork-release.yml` — push a tag `mcs-v<rev>`
   (or run it manually) to build in an Arch container and attach the binary to a GitHub
   Release. Arch/CachyOS-targeted; if library drift breaks it, fall back to `build-fork.sh`.
+  Its `verify-ci` job waits for `ci.yml` on the same commit and aborts unless it concluded
+  `success`, so a tag can't publish a binary built from red code.
