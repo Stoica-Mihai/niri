@@ -10,6 +10,7 @@ Not intended for upstream merge. See per-feature notes for rationale.
 | Feature | Config | Default when absent | Commits |
 |---|---|---|---|
 | Per-workspace background render | `background-render-fps <N \| "auto">` on a named `workspace {}` | off (stock 1 Hz idle floor) | `28f597f9`, `a6464c73` |
+| Restore view on un-maximize | `restore-view-on-unmaximize` in `layout {}` | off (stock re-aligns the view) | see below |
 
 ---
 
@@ -44,6 +45,43 @@ changes. Self-paces: re-arms at the fastest configured fps among hidden flagged 
 
 **Verified:** nested niri (hidden flagged workspace held ~output-refresh fps vs ~1 fps control)
 and live on DRM/NVIDIA with a real game.
+
+---
+
+## Restore view on un-maximize
+
+Toggling `maximize-column` (`Mod+F`) off returns the view to the scroll position it had before
+maximizing, instead of re-aligning the view to the column. Two windows that were side by side are
+side by side again; stock niri instead scrolls the column to the screen edge, pushing its neighbour
+off-view until you scroll back manually.
+
+```kdl
+layout {
+    restore-view-on-unmaximize
+}
+```
+
+Absent (default) — stock behavior. Applies to un-fullscreen as well as un-maximize.
+
+**How:** `maximize-column` is `toggle_full_width()`, a column *width* change that never alters the
+column's `SizingMode`. niri's existing view save/restore (`view_offset_to_restore`) keys off the
+normal↔fullscreen/maximized `SizingMode` transition, so it never observes this toggle at all —
+verified at runtime: across 137 `update_window` calls during a maximize/un-maximize cycle the mode
+stayed `Normal` and the store/restore never fired.
+
+So this adds a second, separate snapshot: `ScrollingSpace::view_offset_before_maximize` is captured
+in `toggle_full_width()` before the column widens, and consumed in `update_window()` on the width
+change that follows the collapse (`restore_view_after_unmaximize`). Both are dropped by
+`clear_view_offsets_to_restore()` wherever the active column changes or is removed, so a stale
+offset cannot leak. A separate field is required: reusing `view_offset_to_restore` would trip
+niri's own debug invariant, which asserts that a set value implies a fullscreen/maximized column.
+
+**Tests:** `unmaximize_restores_view_with_option` and `unmaximize_recenters_view_without_option` in
+`src/layout/tests.rs` — the second asserts the views *differ* without the option, so it guards that
+the first is actually discriminating.
+
+**Verified:** live in nested niri with a native Wayland client (kitty), two columns side by side,
+`Mod+F` twice — option on restores side-by-side, option off reproduces stock behavior.
 
 ---
 

@@ -24,6 +24,7 @@ pub struct Layout {
     pub gaps: f64,
     pub struts: Struts,
     pub background_color: Color,
+    pub restore_view_on_unmaximize: bool,
 }
 
 impl Default for Layout {
@@ -52,6 +53,7 @@ impl Default for Layout {
                 PresetSize::Proportion(2. / 3.),
             ],
             background_color: DEFAULT_BACKGROUND_COLOR,
+            restore_view_on_unmaximize: false,
         }
     }
 }
@@ -68,6 +70,7 @@ impl MergeWith<LayoutPart> for Layout {
             always_center_single_column,
             empty_workspace_above_first,
             gaps,
+            restore_view_on_unmaximize,
         );
 
         merge_clone!(
@@ -126,6 +129,8 @@ pub struct LayoutPart {
     pub struts: Option<Struts>,
     #[knuffel(child)]
     pub background_color: Option<Color>,
+    #[knuffel(child)]
+    pub restore_view_on_unmaximize: Option<Flag>,
 }
 
 #[derive(knuffel::Decode, Debug, Clone, Copy, PartialEq)]

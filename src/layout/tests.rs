@@ -3905,6 +3905,70 @@ prop_compose! {
     }
 }
 
+/// Sets up two side-by-side columns with the second one focused, then returns the layout and the
+/// view position from before `maximize-column` was toggled on and back off.
+#[track_caller]
+fn maximize_unmaximize_view_pos(restore_view_on_unmaximize: bool) -> (f64, f64) {
+    let options = Options {
+        layout: niri_config::Layout {
+            restore_view_on_unmaximize,
+            default_column_width: Some(PresetSize::Proportion(0.75)),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let mut layout = Layout::with_options(Clock::with_time(Duration::ZERO), options);
+
+    check_ops_on_layout(
+        &mut layout,
+        [
+            Op::AddOutput(1),
+            Op::AddWindow {
+                params: TestWindowParams::new(1),
+            },
+            Op::Communicate(1),
+            Op::AddWindow {
+                params: TestWindowParams::new(2),
+            },
+            Op::Communicate(2),
+        ],
+    );
+
+    let view_pos = |layout: &Layout<TestWindow>| {
+        layout
+            .active_workspace()
+            .unwrap()
+            .scrolling()
+            .target_view_pos()
+    };
+    let before = view_pos(&layout);
+
+    check_ops_on_layout(&mut layout, [Op::MaximizeColumn, Op::Communicate(2)]);
+    check_ops_on_layout(&mut layout, [Op::MaximizeColumn, Op::Communicate(2)]);
+
+    (before, view_pos(&layout))
+}
+
+#[test]
+fn unmaximize_restores_view_with_option() {
+    let (before, after) = maximize_unmaximize_view_pos(true);
+    assert_eq!(
+        before, after,
+        "with restore-view-on-unmaximize, unmaximizing must return to the previous view position"
+    );
+}
+
+#[test]
+fn unmaximize_recenters_view_without_option() {
+    // Without the option, keep the upstream behavior of re-aligning the view to the column. This
+    // also guards that the test above is actually discriminating.
+    let (before, after) = maximize_unmaximize_view_pos(false);
+    assert_ne!(
+        before, after,
+        "without restore-view-on-unmaximize, unmaximizing must re-align the view to the column"
+    );
+}
+
 proptest! {
     #![proptest_config(ProptestConfig {
         cases: if std::env::var_os("RUN_SLOW_TESTS").is_none() {

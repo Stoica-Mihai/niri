@@ -9,6 +9,7 @@ layout {
     gaps 16
     center-focused-column "never"
     always-center-single-column
+    restore-view-on-unmaximize
     empty-workspace-above-first
     default-column-display "tabbed"
     background-color "#003300"
@@ -139,6 +140,23 @@ If set, niri will always center a single column on a workspace, regardless of th
 ```kdl
 layout {
     always-center-single-column
+}
+```
+
+### `restore-view-on-unmaximize`
+
+<sup>Fork-only option, see `FORK.md`.</sup>
+
+If set, un-maximizing a column (`maximize-column`, and likewise un-fullscreening) returns the view
+to the scroll position it had before, instead of re-aligning the view to the column.
+
+Without it, collapsing a column back to its normal width scrolls the view so that column sits at
+the edge of the screen, which pushes the window that used to be next to it off-screen. With it, the
+two windows appear side by side again, as they were before maximizing.
+
+```kdl
+layout {
+    restore-view-on-unmaximize
 }
 ```
 

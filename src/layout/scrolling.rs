@@ -67,6 +67,16 @@ pub struct ScrollingSpace<W: LayoutElement> {
     /// View offset to restore after unfullscreening or unmaximizing.
     view_offset_to_restore: Option<f64>,
 
+    /// View offset from before `maximize-column`, to restore when it is toggled back off.
+    ///
+    /// Separate from `view_offset_to_restore` because `maximize-column` is a column width change
+    /// that never changes the column's `SizingMode`, so the sizing-mode transition above cannot
+    /// observe it.
+    view_offset_before_maximize: Option<f64>,
+
+    /// Set when `maximize-column` was toggled off; consumed on the resulting width change.
+    restore_view_after_unmaximize: bool,
+
     /// Windows in the closing animation.
     closing_windows: Vec<ClosingWindow>,
 
@@ -300,6 +310,8 @@ impl<W: LayoutElement> ScrollingSpace<W> {
             view_offset: ViewOffset::Static(0.),
             activate_prev_column_on_removal: None,
             view_offset_to_restore: None,
+            view_offset_before_maximize: None,
+            restore_view_after_unmaximize: false,
             closing_windows: Vec::new(),
             view_size,
             working_area,
@@ -677,6 +689,24 @@ impl<W: LayoutElement> ScrollingSpace<W> {
         }
     }
 
+    /// Records the view offset around expanding or collapsing the active column (maximize or full
+    /// width), so that collapsing it back can restore the scroll position.
+    fn note_expand_toggle(&mut self, expanding: bool) {
+        if expanding {
+            self.view_offset_before_maximize = Some(self.view_offset.stationary());
+            self.restore_view_after_unmaximize = false;
+        } else {
+            self.restore_view_after_unmaximize = self.view_offset_before_maximize.is_some();
+        }
+    }
+
+    /// Drops the stored view offsets; they are only valid while the active column is unchanged.
+    fn clear_view_offsets_to_restore(&mut self) {
+        self.view_offset_to_restore = None;
+        self.view_offset_before_maximize = None;
+        self.restore_view_after_unmaximize = false;
+    }
+
     fn animate_view_offset(&mut self, idx: usize, new_view_offset: f64) {
         self.animate_view_offset_with_config(
             idx,
@@ -793,7 +823,7 @@ impl<W: LayoutElement> ScrollingSpace<W> {
 
             // A different column was activated; reset the flag.
             self.activate_prev_column_on_removal = None;
-            self.view_offset_to_restore = None;
+            self.clear_view_offsets_to_restore();
             self.interactive_resize = None;
         }
     }
@@ -1198,7 +1228,7 @@ impl<W: LayoutElement> ScrollingSpace<W> {
         }
 
         if column_idx == self.active_column_idx {
-            self.view_offset_to_restore = None;
+            self.clear_view_offsets_to_restore();
         }
 
         if self.columns.is_empty() {
@@ -1384,6 +1414,24 @@ impl<W: LayoutElement> ScrollingSpace<W> {
                 None
             };
 
+            // Same, for maximize-column. It doesn't change the column's SizingMode, so it is
+            // detected by the column width changing back after the toggle. Consume the stored
+            // offset either way, so it can't leak into a later resize.
+            let unmaximize_offset = if self.restore_view_after_unmaximize && offset != 0. {
+                self.restore_view_after_unmaximize = false;
+                self.view_offset_before_maximize.take()
+            } else {
+                None
+            };
+
+            let restore_view = self.options.layout.restore_view_on_unmaximize;
+            let restore_offset = if restore_view {
+                unfullscreen_offset.or(unmaximize_offset)
+            } else {
+                // Without the option, keep the upstream behavior: restore, then re-align below.
+                unfullscreen_offset
+            };
+
             // We might need to move the view to ensure the resized window is still visible. But
             // only do it when the view isn't frozen by an interactive resize or a view gesture.
             if self.interactive_resize.is_none() && !self.view_offset.is_gesture() {
@@ -1395,14 +1443,19 @@ impl<W: LayoutElement> ScrollingSpace<W> {
                     self.options.animations.horizontal_view_movement.0
                 };
 
-                // Restore the view offset upon unfullscreening if needed.
-                if let Some(prev_offset) = unfullscreen_offset {
+                // Restore the view offset upon unfullscreening or unmaximizing if needed.
+                if let Some(prev_offset) = restore_offset {
                     self.animate_view_offset_with_config(col_idx, prev_offset, config);
                 }
 
                 // FIXME: we will want to skip the animation in some cases here to make continuously
                 // resizing windows not look janky.
-                self.animate_view_offset_to_column_with_config(None, col_idx, None, config);
+                //
+                // Re-aligning the view to the column would undo the restore above, so skip it when
+                // the restore is wanted.
+                if !(restore_view && restore_offset.is_some()) {
+                    self.animate_view_offset_to_column_with_config(None, col_idx, None, config);
+                }
             }
         }
     }
@@ -2599,9 +2652,13 @@ impl<W: LayoutElement> ScrollingSpace<W> {
         }
 
         let col = &mut self.columns[self.active_column_idx];
+        // Whether this toggle expands the column or collapses it back.
+        let was_expanded = col.is_full_width || col.is_pending_maximized();
         col.toggle_full_width();
 
         cancel_resize_for_column(&mut self.interactive_resize, col);
+
+        self.note_expand_toggle(!was_expanded);
     }
 
     pub fn set_window_width(&mut self, window: Option<&W::Id>, change: SizeChange) {
@@ -2861,6 +2918,10 @@ impl<W: LayoutElement> ScrollingSpace<W> {
 
         if maximize == self.columns[col_idx].is_pending_maximized {
             return false;
+        }
+
+        if col_idx == self.active_column_idx {
+            self.note_expand_toggle(maximize);
         }
 
         let mut col = &mut self.columns[col_idx];
@@ -3465,7 +3526,7 @@ impl<W: LayoutElement> ScrollingSpace<W> {
         let delta = active_col_x - new_col_x;
 
         if self.active_column_idx != new_col_idx {
-            self.view_offset_to_restore = None;
+            self.clear_view_offsets_to_restore();
         }
 
         self.active_column_idx = new_col_idx;
