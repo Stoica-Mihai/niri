@@ -10,6 +10,8 @@ pub struct Workspace {
     pub open_on_output: Option<String>,
     #[knuffel(child)]
     pub layout: Option<WorkspaceLayoutPart>,
+    #[knuffel(child, unwrap(argument))]
+    pub background_render_fps: Option<u16>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

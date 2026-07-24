@@ -2272,6 +2272,7 @@ mod tests {
                         "eDP-1",
                     ),
                     layout: None,
+                    background_render_fps: None,
                 },
                 Workspace {
                     name: WorkspaceName(
@@ -2279,6 +2280,7 @@ mod tests {
                     ),
                     open_on_output: None,
                     layout: None,
+                    background_render_fps: None,
                 },
                 Workspace {
                     name: WorkspaceName(
@@ -2286,6 +2288,7 @@ mod tests {
                     ),
                     open_on_output: None,
                     layout: None,
+                    background_render_fps: None,
                 },
             ],
             recent_windows: RecentWindows {

@@ -2431,6 +2431,16 @@ impl Niri {
             )
             .unwrap();
 
+        event_loop
+            .insert_source(
+                Timer::from_duration(Duration::from_secs(1)),
+                |_, _, state| {
+                    let next = state.niri.send_frame_callbacks_for_background_workspaces();
+                    TimeoutAction::ToDuration(next)
+                },
+            )
+            .unwrap();
+
         let socket_name = create_wayland_socket.then(|| {
             let socket_source = ListeningSocketSource::new_auto().unwrap();
             let socket_name = socket_source.socket_name().to_os_string();
@@ -5168,6 +5178,28 @@ impl Niri {
                 FRAME_CALLBACK_THROTTLE,
                 |_, _| None,
             );
+        }
+    }
+
+    /// Sends frame callbacks to windows on hidden workspaces that set `background-render-fps`,
+    /// keeping them running above the 1 Hz idle floor. Returns the delay until the next tick.
+    pub fn send_frame_callbacks_for_background_workspaces(&mut self) -> Duration {
+        let _span = tracy_client::span!("Niri::send_frame_callbacks_for_background_workspaces");
+
+        let frame_callback_time = get_monotonic_time();
+        let mut max_fps = 0u16;
+
+        self.layout
+            .with_background_render_windows_mut(|mapped, output, fps| {
+                max_fps = max_fps.max(fps);
+                let throttle = Some(Duration::from_secs_f64(0.95 / f64::from(fps)));
+                mapped.send_frame(output, frame_callback_time, throttle, |_, _| None);
+            });
+
+        if max_fps == 0 {
+            Duration::from_secs(1)
+        } else {
+            Duration::from_secs_f64(1.0 / f64::from(max_fps))
         }
     }
 

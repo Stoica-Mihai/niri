@@ -1695,6 +1695,32 @@ impl<W: LayoutElement> Layout<W> {
         }
     }
 
+    /// Runs `f` on every window of a hidden workspace that has `background-render-fps` set,
+    /// passing the window, its output, and the configured fps.
+    pub fn with_background_render_windows_mut(
+        &mut self,
+        mut f: impl FnMut(&mut W, &Output, u16),
+    ) {
+        let MonitorSet::Normal { monitors, .. } = &mut self.monitor_set else {
+            return;
+        };
+
+        for mon in monitors {
+            let active = mon.active_workspace_idx;
+            for (idx, ws) in mon.workspaces.iter_mut().enumerate() {
+                if idx == active {
+                    continue;
+                }
+                let Some(fps) = ws.background_render_fps() else {
+                    continue;
+                };
+                for win in ws.windows_mut() {
+                    f(win, &mon.output, fps);
+                }
+            }
+        }
+    }
+
     pub fn with_windows_mut(&mut self, mut f: impl FnMut(&mut W, Option<&Output>)) {
         if let Some(InteractiveMoveState::Moving(move_)) = &mut self.interactive_move {
             f(move_.tile.window_mut(), Some(&move_.output));
@@ -2950,7 +2976,9 @@ impl<W: LayoutElement> Layout<W> {
         for ws in self.workspaces_mut() {
             let Some(name) = ws.name() else { continue };
             if let Some(config) = config.workspaces.iter().find(|w| &w.name.0 == name) {
+                let fps = config.background_render_fps;
                 ws.update_layout_config(config.layout.clone().map(|x| x.0));
+                ws.set_background_render_fps(fps);
             }
         }
 

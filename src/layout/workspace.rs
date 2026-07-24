@@ -109,6 +109,9 @@ pub struct Workspace<W: LayoutElement> {
     /// Layout config overrides for this workspace.
     layout_config: Option<niri_config::LayoutPart>,
 
+    /// Keep sending frame callbacks at this fps while hidden, instead of the 1 Hz floor.
+    background_render_fps: Option<u16>,
+
     /// Unique ID of this workspace.
     id: WorkspaceId,
 }
@@ -223,6 +226,7 @@ impl<W: LayoutElement> Workspace<W> {
             .unwrap_or(OutputId::new(&output));
 
         let layout_config = config.as_mut().and_then(|c| c.layout.take().map(|x| x.0));
+        let background_render_fps = config.as_ref().and_then(|c| c.background_render_fps);
 
         let scale = output.current_scale();
         let options = Rc::new(
@@ -270,6 +274,7 @@ impl<W: LayoutElement> Workspace<W> {
             options,
             name: config.map(|c| c.name.0),
             layout_config,
+            background_render_fps,
             id: WorkspaceId::next(),
         }
     }
@@ -287,6 +292,7 @@ impl<W: LayoutElement> Workspace<W> {
         );
 
         let layout_config = config.as_mut().and_then(|c| c.layout.take().map(|x| x.0));
+        let background_render_fps = config.as_ref().and_then(|c| c.background_render_fps);
 
         let scale = smithay::output::Scale::Integer(1);
         let options = Rc::new(
@@ -334,6 +340,7 @@ impl<W: LayoutElement> Workspace<W> {
             options,
             name: config.map(|c| c.name.0),
             layout_config,
+            background_render_fps,
             id: WorkspaceId::next(),
         }
     }
@@ -348,6 +355,14 @@ impl<W: LayoutElement> Workspace<W> {
 
     pub fn name(&self) -> Option<&String> {
         self.name.as_ref()
+    }
+
+    pub fn background_render_fps(&self) -> Option<u16> {
+        self.background_render_fps.filter(|fps| *fps > 0)
+    }
+
+    pub fn set_background_render_fps(&mut self, fps: Option<u16>) {
+        self.background_render_fps = fps;
     }
 
     pub fn unname(&mut self) {
