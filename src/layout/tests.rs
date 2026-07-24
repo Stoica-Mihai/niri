@@ -861,6 +861,7 @@ impl Op {
                     name: WorkspaceName(format!("ws{ws_name}")),
                     open_on_output: output_name.map(|name| format!("output{name}")),
                     layout: layout_config.map(|x| niri_config::WorkspaceLayoutPart(*x)),
+                    background_render_fps: None,
                 });
             }
             Op::UnnameWorkspace { ws_name } => {
