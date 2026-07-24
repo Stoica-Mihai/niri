@@ -11,11 +11,58 @@ pub struct Workspace {
     #[knuffel(child)]
     pub layout: Option<WorkspaceLayoutPart>,
     #[knuffel(child, unwrap(argument))]
-    pub background_render_fps: Option<u16>,
+    pub background_render_fps: Option<BackgroundRenderFps>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkspaceName(pub String);
+
+/// Frame rate for background rendering: a fixed fps or `"auto"` (the output's refresh rate).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackgroundRenderFps {
+    Auto,
+    Fixed(u16),
+}
+
+impl<S: knuffel::traits::ErrorSpan> knuffel::DecodeScalar<S> for BackgroundRenderFps {
+    fn type_check(
+        type_name: &Option<knuffel::span::Spanned<knuffel::ast::TypeName, S>>,
+        ctx: &mut knuffel::decode::Context<S>,
+    ) {
+        if let Some(type_name) = type_name {
+            ctx.emit_error(DecodeError::unexpected(
+                type_name,
+                "type name",
+                "no type name expected for this node",
+            ));
+        }
+    }
+
+    fn raw_decode(
+        val: &knuffel::span::Spanned<knuffel::ast::Literal, S>,
+        ctx: &mut knuffel::decode::Context<S>,
+    ) -> Result<Self, DecodeError<S>> {
+        match &**val {
+            knuffel::ast::Literal::String(ref s) if s.eq_ignore_ascii_case("auto") => {
+                Ok(Self::Auto)
+            }
+            knuffel::ast::Literal::Int(ref value) => match value.try_into() {
+                Ok(v) => Ok(Self::Fixed(v)),
+                Err(e) => {
+                    ctx.emit_error(DecodeError::conversion(val, e));
+                    Ok(Self::Auto)
+                }
+            },
+            _ => {
+                ctx.emit_error(DecodeError::unsupported(
+                    val,
+                    "expected \"auto\" or an integer fps",
+                ));
+                Ok(Self::Auto)
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct WorkspaceLayoutPart(pub LayoutPart);

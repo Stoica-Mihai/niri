@@ -1711,8 +1711,17 @@ impl<W: LayoutElement> Layout<W> {
                 if idx == active {
                     continue;
                 }
-                let Some(fps) = ws.background_render_fps() else {
+                let Some(cfg) = ws.background_render_fps() else {
                     continue;
+                };
+                let fps = match cfg {
+                    niri_config::BackgroundRenderFps::Fixed(n) => n,
+                    niri_config::BackgroundRenderFps::Auto => mon
+                        .output
+                        .current_mode()
+                        .map(|m| (f64::from(m.refresh) / 1000.0).round() as u16)
+                        .filter(|f| *f > 0)
+                        .unwrap_or(60),
                 };
                 for win in ws.windows_mut() {
                     f(win, &mon.output, fps);

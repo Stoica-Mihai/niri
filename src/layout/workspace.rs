@@ -110,7 +110,7 @@ pub struct Workspace<W: LayoutElement> {
     layout_config: Option<niri_config::LayoutPart>,
 
     /// Keep sending frame callbacks at this fps while hidden, instead of the 1 Hz floor.
-    background_render_fps: Option<u16>,
+    background_render_fps: Option<niri_config::BackgroundRenderFps>,
 
     /// Unique ID of this workspace.
     id: WorkspaceId,
@@ -357,11 +357,14 @@ impl<W: LayoutElement> Workspace<W> {
         self.name.as_ref()
     }
 
-    pub fn background_render_fps(&self) -> Option<u16> {
-        self.background_render_fps.filter(|fps| *fps > 0)
+    pub fn background_render_fps(&self) -> Option<niri_config::BackgroundRenderFps> {
+        match self.background_render_fps {
+            Some(niri_config::BackgroundRenderFps::Fixed(0)) => None,
+            other => other,
+        }
     }
 
-    pub fn set_background_render_fps(&mut self, fps: Option<u16>) {
+    pub fn set_background_render_fps(&mut self, fps: Option<niri_config::BackgroundRenderFps>) {
         self.background_render_fps = fps;
     }
 

@@ -62,7 +62,7 @@ use crate::utils::{Flag, MergeWith as _};
 pub use crate::window_rule::{
     FloatingPosition, PopupsRule, RelativeTo, ResolvedPopupsRules, WindowRule,
 };
-pub use crate::workspace::{Workspace, WorkspaceLayoutPart};
+pub use crate::workspace::{BackgroundRenderFps, Workspace, WorkspaceLayoutPart};
 
 const RECURSION_LIMIT: u8 = 10;
 
