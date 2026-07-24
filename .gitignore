@@ -2,3 +2,5 @@
 /result
 
 .idea
+# Fork-local design notes (not for upstream)
+docs/superpowers/
