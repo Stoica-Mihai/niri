@@ -301,7 +301,9 @@ jobs:
         continue-on-error: true
 
   publish-wiki:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Fork: publishing upstream's docs site and wiki under this account is not wanted, and the
+    # fork's wiki is uninitialized so the wiki push fails.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'niri-wm/niri'
     needs:
       - publish-docs
     permissions:
@@ -318,7 +320,9 @@ jobs:
           path: docs/wiki/
 
   publish-docs:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Fork: publishing upstream's docs site and wiki under this account is not wanted, and the
+    # fork's wiki is uninitialized so the wiki push fails.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'niri-wm/niri'
     needs:
       - test
     permissions:

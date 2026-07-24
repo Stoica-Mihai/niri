@@ -107,6 +107,9 @@ the first is actually discriminating.
   `<niri-base>+mcs.<rev>`. Matches your exact system.
 - **CI build/test gate:** `.github/workflows/ci.yml` (inherited) builds + tests every push.
   On a fork this must be enabled once in the repo's **Actions** tab.
+- **Disabled upstream publishing:** `ci.yml`'s `publish-docs` and `publish-wiki` jobs are gated on
+  `github.repository == 'niri-wm/niri'`. They fire on pushes to `main`, and on a fork they would
+  republish niri's docs site to `gh-pages` under this account and fail on the uninitialized wiki.
 - **CI binary release:** `.github/workflows/fork-release.yml` — push a tag `mcs-v<rev>`
   (or run it manually) to build in an Arch container and attach the binary to a GitHub
   Release. Arch/CachyOS-targeted; if library drift breaks it, fall back to `build-fork.sh`.
