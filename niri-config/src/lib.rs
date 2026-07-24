@@ -1471,6 +1471,7 @@ mod tests {
                     b: 0.25,
                     a: 1.0,
                 },
+                restore_view_on_unmaximize: false,
             },
             prefer_no_csd: true,
             cursor: Cursor {

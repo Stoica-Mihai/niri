@@ -1697,10 +1697,7 @@ impl<W: LayoutElement> Layout<W> {
 
     /// Runs `f` on every window of a hidden workspace that has `background-render-fps` set,
     /// passing the window, its output, and the configured fps.
-    pub fn with_background_render_windows_mut(
-        &mut self,
-        mut f: impl FnMut(&mut W, &Output, u16),
-    ) {
+    pub fn with_background_render_windows_mut(&mut self, mut f: impl FnMut(&mut W, &Output, u16)) {
         let MonitorSet::Normal { monitors, .. } = &mut self.monitor_set else {
             return;
         };
