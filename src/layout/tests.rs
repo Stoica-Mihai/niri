@@ -4050,6 +4050,101 @@ fn changing_the_active_column_cancels_a_peek() {
     let _ = peeked;
 }
 
+#[test]
+fn peek_last_reveals_the_last_column_and_returns() {
+    let mut layout = peek_test_layout();
+    let resting = target_view_pos(&layout);
+    let focused = layout.focus().map(|win| *win.id());
+
+    layout.peek_column_last();
+    assert!(layout.is_peeking());
+    assert_ne!(
+        target_view_pos(&layout),
+        resting,
+        "peeking to the last column must scroll the view"
+    );
+    assert_eq!(
+        layout.focus().map(|win| *win.id()),
+        focused,
+        "peeking must not move focus"
+    );
+
+    layout.end_peek();
+    assert!(!layout.is_peeking());
+    assert_eq!(
+        target_view_pos(&layout),
+        resting,
+        "ending the peek must return to the resting view"
+    );
+}
+
+#[test]
+fn peek_first_reveals_the_first_column_and_returns() {
+    let mut layout = peek_test_layout();
+    let resting = target_view_pos(&layout);
+    let focused = layout.focus().map(|win| *win.id());
+
+    // Scroll column 0 off-screen first (active column stays 0 during a peek).
+    layout.peek_column_last();
+    let far = target_view_pos(&layout);
+
+    layout.peek_column_first();
+    assert!(layout.is_peeking());
+    assert_ne!(
+        target_view_pos(&layout),
+        far,
+        "peeking to the first column must scroll column 0 back into view"
+    );
+    assert_eq!(
+        layout.focus().map(|win| *win.id()),
+        focused,
+        "peeking must not move focus"
+    );
+
+    layout.end_peek();
+    assert_eq!(
+        target_view_pos(&layout),
+        resting,
+        "ending the peek must return to the resting view"
+    );
+}
+
+#[test]
+fn peek_first_when_already_at_edge_is_a_noop() {
+    let mut layout = peek_test_layout();
+    let resting = target_view_pos(&layout);
+
+    // Column 0 is focused and fully visible at rest, so there is nothing to reveal.
+    layout.peek_column_first();
+    assert!(
+        !layout.is_peeking(),
+        "peeking to an already-visible edge column must not start a session"
+    );
+    assert_eq!(
+        target_view_pos(&layout),
+        resting,
+        "a no-op peek must not move the view"
+    );
+}
+
+#[test]
+fn peek_first_then_step_still_returns_to_origin() {
+    let mut layout = peek_test_layout();
+    let resting = target_view_pos(&layout);
+
+    // Absolute and stepping peeks share one restore point.
+    layout.peek_column_last();
+    layout.peek_column(PeekDirection::Left);
+    assert!(layout.is_peeking());
+
+    layout.end_peek();
+    assert_eq!(
+        target_view_pos(&layout),
+        resting,
+        "one shared restore point must return to the original offset"
+    );
+}
+
 /// Sets up three named workspaces on one output, each with a window: `ws1` and `ws2` carry the
 /// given `background-render-fps` settings, `ws3` never does. `ws3` is left focused, so `ws1` and
 /// `ws2` are hidden.

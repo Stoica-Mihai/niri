@@ -945,6 +945,14 @@ impl<W: LayoutElement> Workspace<W> {
         self.scrolling.peek_column(dir)
     }
 
+    pub fn peek_column_first(&mut self) -> bool {
+        self.scrolling.peek_column_first()
+    }
+
+    pub fn peek_column_last(&mut self) -> bool {
+        self.scrolling.peek_column_last()
+    }
+
     pub fn end_peek(&mut self) {
         self.scrolling.end_peek();
     }

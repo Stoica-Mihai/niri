@@ -1972,6 +1972,20 @@ impl<W: LayoutElement> Layout<W> {
         workspace.peek_column(dir);
     }
 
+    pub fn peek_column_first(&mut self) {
+        let Some(workspace) = self.active_workspace_mut() else {
+            return;
+        };
+        workspace.peek_column_first();
+    }
+
+    pub fn peek_column_last(&mut self) {
+        let Some(workspace) = self.active_workspace_mut() else {
+            return;
+        };
+        workspace.peek_column_last();
+    }
+
     pub fn end_peek(&mut self) {
         let Some(workspace) = self.active_workspace_mut() else {
             return;

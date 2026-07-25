@@ -1685,6 +1685,47 @@ impl<W: LayoutElement> ScrollingSpace<W> {
             return false;
         };
 
+        self.commit_peek(idx, new_view_offset)
+    }
+
+    /// Peeks directly to `idx` (an absolute column), skipping the one-column walk.
+    ///
+    /// Reveals the minimum amount needed to bring that column into view; if it's already fully on
+    /// screen there is nothing to do and any ongoing peek is left untouched.
+    fn peek_to(&mut self, idx: usize) -> bool {
+        if self.columns.is_empty() {
+            return false;
+        }
+
+        // Same guard as the resize path: don't fight a gesture or an interactive resize.
+        if self.interactive_resize.is_some() || self.view_offset.is_gesture() {
+            return false;
+        }
+
+        let pixel = 1. / self.scale;
+        let new_view_offset = self.view_offset_for_peek(idx);
+        if (new_view_offset - self.view_offset.target()).abs() < pixel {
+            return false;
+        }
+
+        self.commit_peek(idx, new_view_offset)
+    }
+
+    /// Peeks to the first column.
+    pub fn peek_column_first(&mut self) -> bool {
+        self.peek_to(0)
+    }
+
+    /// Peeks to the last column.
+    pub fn peek_column_last(&mut self) -> bool {
+        if self.columns.is_empty() {
+            return false;
+        }
+        self.peek_to(self.columns.len() - 1)
+    }
+
+    /// Shared tail for every peek entry point: preserve one restore point, animate, record state.
+    fn commit_peek(&mut self, idx: usize, new_view_offset: f64) -> bool {
         let restore = self
             .peek
             .map_or_else(|| self.view_offset.stationary(), |peek| peek.restore);
