@@ -123,7 +123,9 @@ Two integration points that are easy to miss, both of which cost a live bug befo
 `changing_the_active_column_cancels_a_peek`.
 
 **Verified:** live in nested niri with four kitty windows — the view scrolled two columns with focus
-still reported on the first window, and `peek-end` restored the original view exactly.
+still reported on the first window, and `peek-end` restored the original view exactly. The
+hold-and-release interaction itself was then confirmed on a real session with `Mod+Alt+H/L`, which
+is the only way to exercise the modifier-release trigger (IPC has no modifiers to release).
 
 ---
 
