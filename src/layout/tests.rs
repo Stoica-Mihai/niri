@@ -3905,6 +3905,88 @@ prop_compose! {
     }
 }
 
+/// Sets up three named workspaces on one output, each with a window: `ws1` and `ws2` carry the
+/// given `background-render-fps` settings, `ws3` never does. `ws3` is left focused, so `ws1` and
+/// `ws2` are hidden.
+fn background_render_layout(
+    fps1: Option<niri_config::BackgroundRenderFps>,
+    fps2: Option<niri_config::BackgroundRenderFps>,
+) -> Layout<TestWindow> {
+    let mut layout = Layout::default();
+    check_ops_on_layout(&mut layout, [Op::AddOutput(1)]);
+
+    for (name, fps) in [(1, fps1), (2, fps2), (3, None)] {
+        layout.ensure_named_workspace(&WorkspaceConfig {
+            name: WorkspaceName(format!("ws{name}")),
+            open_on_output: Some(String::from("output1")),
+            layout: None,
+            background_render_fps: fps,
+        });
+        check_ops_on_layout(
+            &mut layout,
+            [
+                Op::AddWindowToNamedWorkspace {
+                    params: TestWindowParams::new(name),
+                    ws_name: name,
+                },
+                Op::Communicate(name),
+            ],
+        );
+    }
+
+    focus_workspace_named(&mut layout, "ws3");
+    layout
+}
+
+#[track_caller]
+fn focus_workspace_named(layout: &mut Layout<TestWindow>, name: &str) {
+    let idx = layout
+        .workspaces()
+        .find(|(_, _, ws)| ws.name().is_some_and(|n| n.as_str() == name))
+        .map(|(_, idx, _)| idx)
+        .unwrap();
+    check_ops_on_layout(layout, [Op::FocusWorkspace(idx)]);
+}
+
+/// The windows the background-render timer would send frame callbacks to, as (window id, fps).
+fn background_render_ticks(layout: &mut Layout<TestWindow>) -> Vec<(usize, u16)> {
+    let mut ticks = Vec::new();
+    layout.with_background_render_windows_mut(|win, _output, fps| ticks.push((*win.id(), fps)));
+    ticks.sort_unstable();
+    ticks
+}
+
+#[test]
+fn background_render_ticks_only_hidden_flagged_workspaces() {
+    let mut layout =
+        background_render_layout(Some(niri_config::BackgroundRenderFps::Fixed(30)), None);
+
+    // ws1 is flagged and hidden, so only its window ticks. ws2 is hidden but unflagged, and ws3
+    // is flagged nowhere and focused anyway.
+    assert_eq!(background_render_ticks(&mut layout), [(1, 30)]);
+}
+
+#[test]
+fn background_render_skips_the_active_workspace() {
+    let mut layout =
+        background_render_layout(Some(niri_config::BackgroundRenderFps::Fixed(30)), None);
+
+    // A visible workspace is driven by the render loop; ticking it too would double up.
+    focus_workspace_named(&mut layout, "ws1");
+    assert_eq!(background_render_ticks(&mut layout), []);
+}
+
+#[test]
+fn background_render_auto_resolves_to_output_refresh_and_zero_disables() {
+    let mut layout = background_render_layout(
+        Some(niri_config::BackgroundRenderFps::Auto),
+        Some(niri_config::BackgroundRenderFps::Fixed(0)),
+    );
+
+    // The test output runs at 60.000 Hz, and an explicit 0 turns the feature off.
+    assert_eq!(background_render_ticks(&mut layout), [(1, 60)]);
+}
+
 /// Sets up two side-by-side columns with the second one focused, then returns the layout and the
 /// view position from before `maximize-column` was toggled on and back off.
 #[track_caller]
