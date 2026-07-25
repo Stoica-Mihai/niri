@@ -1648,17 +1648,20 @@ impl<W: LayoutElement> ScrollingSpace<W> {
         true
     }
 
+    /// Whether a peek can start or continue: there must be columns, and we must not be fighting an
+    /// interactive resize or an ongoing view gesture.
+    fn can_peek(&self) -> bool {
+        !self.columns.is_empty()
+            && self.interactive_resize.is_none()
+            && !self.view_offset.is_gesture()
+    }
+
     /// Scrolls the view one column toward `dir` without moving focus.
     ///
     /// The first step stores the current view offset; [`Self::end_peek`] animates back to it. Steps
     /// accumulate, so a peek can wander in both directions and still return to where it started.
     pub fn peek_column(&mut self, dir: PeekDirection) -> bool {
-        if self.columns.is_empty() {
-            return false;
-        }
-
-        // Same guard as the resize path: don't fight a gesture or an interactive resize.
-        if self.interactive_resize.is_some() || self.view_offset.is_gesture() {
+        if !self.can_peek() {
             return false;
         }
 
@@ -1693,12 +1696,7 @@ impl<W: LayoutElement> ScrollingSpace<W> {
     /// Reveals the minimum amount needed to bring that column into view; if it's already fully on
     /// screen there is nothing to do and any ongoing peek is left untouched.
     fn peek_to(&mut self, idx: usize) -> bool {
-        if self.columns.is_empty() {
-            return false;
-        }
-
-        // Same guard as the resize path: don't fight a gesture or an interactive resize.
-        if self.interactive_resize.is_some() || self.view_offset.is_gesture() {
+        if !self.can_peek() {
             return false;
         }
 

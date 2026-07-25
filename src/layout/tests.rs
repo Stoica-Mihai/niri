@@ -4128,6 +4128,25 @@ fn peek_first_when_already_at_edge_is_a_noop() {
 }
 
 #[test]
+fn peek_last_when_already_at_edge_is_a_noop() {
+    let mut layout = peek_test_layout();
+
+    // Bring the last column fully into view first; a second peek to it must then do nothing.
+    layout.peek_column_last();
+    assert!(layout.is_peeking());
+    let at_last = target_view_pos(&layout);
+
+    layout.peek_column_last();
+    assert_eq!(
+        target_view_pos(&layout),
+        at_last,
+        "peeking to the already-visible last column must not move the view"
+    );
+
+    layout.end_peek();
+}
+
+#[test]
 fn peek_first_then_step_still_returns_to_origin() {
     let mut layout = peek_test_layout();
     let resting = target_view_pos(&layout);

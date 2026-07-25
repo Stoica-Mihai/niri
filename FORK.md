@@ -109,8 +109,9 @@ window or switching workspace ends the peek in place rather than scrolling back.
 (vim `gg` / `G`); they join the same session, so releasing the modifier still returns to the
 one offset you started from.
 
-**How:** `ScrollingSpace::peek_column` stores the current view offset once, then animates to the
-minimum offset that brings the target column into view, rebased onto the active column — which
+**How:** `ScrollingSpace::peek_column` (and the absolute `peek_column_first`/`peek_column_last`)
+funnel through a shared `commit_peek` that stores the current view offset once, then animates to
+the minimum offset that brings the target column into view, rebased onto the active column — which
 deliberately does not change, so `view_offset`'s invariant holds. The session ends from
 `input/mod.rs`, which fires `PeekEnd` when all modifiers are released while a peek is in progress;
 that's the same trigger the MRU window switcher uses, so the bind must be modifier-based.
