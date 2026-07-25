@@ -77,6 +77,9 @@ pub struct ScrollingSpace<W: LayoutElement> {
     /// Set when `maximize-column` was toggled off; consumed on the resulting width change.
     restore_view_after_unmaximize: bool,
 
+    /// Ongoing peek: the view is scrolled away from the active column and will return.
+    peek: Option<Peek>,
+
     /// Windows in the closing animation.
     closing_windows: Vec<ClosingWindow>,
 
@@ -110,6 +113,24 @@ niri_render_elements! {
         ClosingWindow = ClosingWindowRenderElement,
         TabIndicator = TabIndicatorRenderElement,
     }
+}
+
+/// Direction to move the view in during a peek.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PeekDirection {
+    Left,
+    Right,
+}
+
+/// An ongoing peek: the view looks at another column while focus stays put.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Peek {
+    /// View offset to animate back to when the peek ends.
+    ///
+    /// Relative to the active column, which does not change during a peek.
+    restore: f64,
+    /// Column the view is currently looking at.
+    idx: usize,
 }
 
 /// Extra per-column data.
@@ -312,6 +333,7 @@ impl<W: LayoutElement> ScrollingSpace<W> {
             view_offset_to_restore: None,
             view_offset_before_maximize: None,
             restore_view_after_unmaximize: false,
+            peek: None,
             closing_windows: Vec::new(),
             view_size,
             working_area,
@@ -705,6 +727,9 @@ impl<W: LayoutElement> ScrollingSpace<W> {
         self.view_offset_to_restore = None;
         self.view_offset_before_maximize = None;
         self.restore_view_after_unmaximize = false;
+        // Dropped, not restored: the stored offset is relative to the active column, so once that
+        // changes the view should stay where it is rather than jump somewhere stale.
+        self.peek = None;
     }
 
     fn animate_view_offset(&mut self, idx: usize, new_view_offset: f64) {
@@ -1433,8 +1458,13 @@ impl<W: LayoutElement> ScrollingSpace<W> {
             };
 
             // We might need to move the view to ensure the resized window is still visible. But
-            // only do it when the view isn't frozen by an interactive resize or a view gesture.
-            if self.interactive_resize.is_none() && !self.view_offset.is_gesture() {
+            // only do it when the view isn't frozen by an interactive resize, a view gesture, or a
+            // peek: during a peek the view deliberately isn't looking at the active column, and
+            // every client commit would otherwise snap it back.
+            if self.interactive_resize.is_none()
+                && !self.view_offset.is_gesture()
+                && self.peek.is_none()
+            {
                 // Synchronize the horizontal view movement with the resize so that it looks nice.
                 // This is especially important for always-centered view.
                 let config = if ongoing_resize_anim {
@@ -1616,6 +1646,74 @@ impl<W: LayoutElement> ScrollingSpace<W> {
 
         self.activate_column(self.active_column_idx + 1);
         true
+    }
+
+    /// Scrolls the view one column toward `dir` without moving focus.
+    ///
+    /// The first step stores the current view offset; [`Self::end_peek`] animates back to it. Steps
+    /// accumulate, so a peek can wander in both directions and still return to where it started.
+    pub fn peek_column(&mut self, dir: PeekDirection) -> bool {
+        if self.columns.is_empty() {
+            return false;
+        }
+
+        // Same guard as the resize path: don't fight a gesture or an interactive resize.
+        if self.interactive_resize.is_some() || self.view_offset.is_gesture() {
+            return false;
+        }
+
+        // Walk past columns that are already fully on screen: stepping onto one of those would
+        // scroll by nothing, and a keypress that does nothing reads as broken.
+        let pixel = 1. / self.scale;
+        let mut idx = self.peek.map_or(self.active_column_idx, |peek| peek.idx);
+        let found = loop {
+            let next = match dir {
+                PeekDirection::Left => idx.checked_sub(1),
+                PeekDirection::Right => Some(idx + 1).filter(|idx| *idx < self.columns.len()),
+            };
+            let Some(next) = next else { break None };
+            idx = next;
+
+            let offset = self.view_offset_for_peek(idx);
+            if (offset - self.view_offset.target()).abs() >= pixel {
+                break Some((idx, offset));
+            }
+        };
+
+        // Nothing left to reveal that way; leave any ongoing peek untouched.
+        let Some((idx, new_view_offset)) = found else {
+            return false;
+        };
+
+        let restore = self
+            .peek
+            .map_or_else(|| self.view_offset.stationary(), |peek| peek.restore);
+
+        self.animate_view_offset(self.active_column_idx, new_view_offset);
+        self.peek = Some(Peek { restore, idx });
+        true
+    }
+
+    /// View offset that scrolls the minimum amount needed to bring `idx` into view.
+    ///
+    /// Rebased onto the active column, since that's what `view_offset` is relative to and a peek
+    /// deliberately leaves the active column alone.
+    fn view_offset_for_peek(&self, idx: usize) -> f64 {
+        let view_pos = self.column_x(idx) + self.compute_new_view_offset_for_column_fit(None, idx);
+        view_pos - self.column_x(self.active_column_idx)
+    }
+
+    /// Ends an ongoing peek, animating the view back to where it started.
+    pub fn end_peek(&mut self) {
+        let Some(peek) = self.peek.take() else {
+            return;
+        };
+
+        self.animate_view_offset(self.active_column_idx, peek.restore);
+    }
+
+    pub fn is_peeking(&self) -> bool {
+        self.peek.is_some()
     }
 
     pub fn focus_column_first(&mut self) {

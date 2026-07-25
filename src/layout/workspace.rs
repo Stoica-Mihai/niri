@@ -19,7 +19,8 @@ use smithay::wayland::shell::xdg::SurfaceCachedState;
 
 use super::floating::{FloatingSpace, FloatingSpaceRenderElement};
 use super::scrolling::{
-    Column, ColumnWidth, ScrollDirection, ScrollingSpace, ScrollingSpaceRenderElement,
+    Column, ColumnWidth, PeekDirection, ScrollDirection, ScrollingSpace,
+    ScrollingSpaceRenderElement,
 };
 use super::shadow::Shadow;
 use super::tile::{Tile, TileRenderSnapshot};
@@ -937,6 +938,19 @@ impl<W: LayoutElement> Workspace<W> {
         } else {
             self.scrolling.focus_right()
         }
+    }
+
+    /// Peeking is a scrolling-layout concept; there's nothing to scroll in the floating layer.
+    pub fn peek_column(&mut self, dir: PeekDirection) -> bool {
+        self.scrolling.peek_column(dir)
+    }
+
+    pub fn end_peek(&mut self) {
+        self.scrolling.end_peek();
+    }
+
+    pub fn is_peeking(&self) -> bool {
+        self.scrolling.is_peeking()
     }
 
     pub fn focus_column_first(&mut self) {

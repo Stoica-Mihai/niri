@@ -42,7 +42,7 @@ use niri_config::{
     Config, CornerRadius, LayoutPart, PresetSize, Workspace as WorkspaceConfig, WorkspaceReference,
 };
 use niri_ipc::{ColumnDisplay, PositionChange, SizeChange, WindowLayout};
-use scrolling::{Column, ColumnWidth};
+use scrolling::{Column, ColumnWidth, PeekDirection};
 use smithay::backend::renderer::element::surface::WaylandSurfaceRenderElement;
 use smithay::backend::renderer::element::utils::RescaleRenderElement;
 use smithay::backend::renderer::gles::{GlesRenderer, GlesTexture};
@@ -1963,6 +1963,25 @@ impl<W: LayoutElement> Layout<W> {
             return;
         };
         workspace.focus_right();
+    }
+
+    pub fn peek_column(&mut self, dir: PeekDirection) {
+        let Some(workspace) = self.active_workspace_mut() else {
+            return;
+        };
+        workspace.peek_column(dir);
+    }
+
+    pub fn end_peek(&mut self) {
+        let Some(workspace) = self.active_workspace_mut() else {
+            return;
+        };
+        workspace.end_peek();
+    }
+
+    pub fn is_peeking(&self) -> bool {
+        self.active_workspace()
+            .is_some_and(|workspace| workspace.is_peeking())
     }
 
     pub fn focus_column_first(&mut self) {

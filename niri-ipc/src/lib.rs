@@ -338,6 +338,16 @@ pub enum Action {
     FocusColumnLeft {},
     /// Focus the column to the right.
     FocusColumnRight {},
+    /// Scroll the view one column to the left without moving focus.
+    ///
+    /// Ends with `PeekEnd`, which returns the view to where the peek started.
+    PeekColumnLeft {},
+    /// Scroll the view one column to the right without moving focus.
+    ///
+    /// Ends with `PeekEnd`, which returns the view to where the peek started.
+    PeekColumnRight {},
+    /// Return the view to where the ongoing peek started.
+    PeekEnd {},
     /// Focus the first column.
     FocusColumnFirst {},
     /// Focus the last column.

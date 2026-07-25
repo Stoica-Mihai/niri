@@ -11,6 +11,7 @@ Not intended for upstream merge. See per-feature notes for rationale.
 |---|---|---|---|
 | Per-workspace background render | `background-render-fps <N \| "auto">` on a named `workspace {}` | off (stock 1 Hz idle floor) | `28f597f9`, `a6464c73` |
 | Restore view on un-maximize | `restore-view-on-unmaximize` in `layout {}` | off (stock re-aligns the view) | see below |
+| Hold-to-peek | `peek-column-left` / `peek-column-right` / `peek-end` actions | n/a (bind them to use) | see below |
 
 ---
 
@@ -82,6 +83,47 @@ the first is actually discriminating.
 
 **Verified:** live in nested niri with a native Wayland client (kitty), two columns side by side,
 `Mod+F` twice — option on restores side-by-side, option off reproduces stock behavior.
+
+---
+
+## Hold-to-peek
+
+Look at another column without leaving the one you're working in. The view scrolls with niri's
+normal animation, focus never moves, and releasing the modifier animates back to the exact offset
+you started from.
+
+```kdl
+binds {
+    Mod+Alt+H repeat=false { peek-column-left; }
+    Mod+Alt+L repeat=false { peek-column-right; }
+}
+```
+
+Steps accumulate: hold the modifier and keep tapping to wander in either direction, then release to
+return — there is only ever one restore point. Columns already fully on screen are skipped, so a
+press always reveals something. `peek-end` returns early; changing the active column, closing a
+window or switching workspace ends the peek in place rather than scrolling back.
+
+**How:** `ScrollingSpace::peek_column` stores the current view offset once, then animates to the
+minimum offset that brings the target column into view, rebased onto the active column — which
+deliberately does not change, so `view_offset`'s invariant holds. The session ends from
+`input/mod.rs`, which fires `PeekEnd` when all modifiers are released while a peek is in progress;
+that's the same trigger the MRU window switcher uses, so the bind must be modifier-based.
+
+Two integration points that are easy to miss, both of which cost a live bug before being fixed:
+
+- `update_window()` scrolls the active column back into view on **every client commit** — a blinking
+  terminal cursor is enough. A peek has to freeze that path exactly like a view gesture does, or the
+  view snaps back within a frame.
+- The stored offset is relative to the active column, so it's dropped by
+  `clear_view_offsets_to_restore()` whenever that column changes or goes away.
+
+**Tests:** `peek_returns_the_view_and_leaves_focus_alone`, `peek_steps_accumulate_and_still_return`,
+`peek_past_the_last_column_keeps_the_session`, `client_commits_do_not_cancel_a_peek`,
+`changing_the_active_column_cancels_a_peek`.
+
+**Verified:** live in nested niri with four kitty windows — the view scrolled two columns with focus
+still reported on the first window, and `peek-end` restored the original view exactly.
 
 ---
 

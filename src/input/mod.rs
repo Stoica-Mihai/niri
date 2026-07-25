@@ -47,7 +47,7 @@ use self::resize_grab::ResizeGrab;
 use self::spatial_movement_grab::SpatialMovementGrab;
 #[cfg(feature = "dbus")]
 use crate::dbus::freedesktop_a11y::KbMonBlock;
-use crate::layout::scrolling::ScrollDirection;
+use crate::layout::scrolling::{PeekDirection, ScrollDirection};
 use crate::layout::{ActivateWindow, LayoutElement as _};
 use crate::niri::{CastTarget, PointerVisibility, State};
 use crate::ui::mru::{WindowMru, WindowMruUi};
@@ -489,6 +489,12 @@ impl State {
                     } else {
                         return FilterResult::Forward;
                     }
+                }
+
+                // A peek lasts as long as the modifier is held, like the MRU UI above. Unlike it,
+                // don't consume the release: peeking doesn't own the keyboard.
+                if !pressed && modifiers.is_empty() && this.niri.layout.is_peeking() {
+                    this.do_action(Action::PeekEnd, false);
                 }
 
                 if pressed && raw == Some(Keysym::Escape) {
@@ -1036,6 +1042,21 @@ impl State {
                     // FIXME: granular
                     self.niri.queue_redraw_all();
                 }
+            }
+            Action::PeekColumnLeft => {
+                self.niri.layout.peek_column(PeekDirection::Left);
+                // FIXME: granular
+                self.niri.queue_redraw_all();
+            }
+            Action::PeekColumnRight => {
+                self.niri.layout.peek_column(PeekDirection::Right);
+                // FIXME: granular
+                self.niri.queue_redraw_all();
+            }
+            Action::PeekEnd => {
+                self.niri.layout.end_peek();
+                // FIXME: granular
+                self.niri.queue_redraw_all();
             }
             Action::FocusColumnLeft => {
                 self.niri.layout.focus_left();

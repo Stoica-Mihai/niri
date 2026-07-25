@@ -176,6 +176,31 @@ Run `niri msg action` to get a full list of actions along with their short descr
 
 Here are a few actions that benefit from more explanation.
 
+#### `peek-column-left` / `peek-column-right` / `peek-end`
+
+<sup>Fork-only actions, see `FORK.md`.</sup>
+
+Scroll the view to another column **without moving focus**, then return to where you started.
+
+```kdl
+binds {
+    Mod+Alt+H repeat=false { peek-column-left; }
+    Mod+Alt+L repeat=false { peek-column-right; }
+}
+```
+
+A peek starts on the first press and lasts until the modifier is released, at which point the view
+animates back to the offset it had before — the same way the window switcher closes when you let go
+of `Mod`. Keep pressing the direction keys to look further; steps accumulate in both directions, and
+releasing still returns to the original position. Bind with `repeat=false`, otherwise key repeat
+walks the view along on its own.
+
+Columns already fully on screen are skipped, so a peek always reveals something new. Focus, and
+therefore typing, stays with the original window the whole time. Changing the active column, closing
+a window, or switching workspace ends the peek where it is instead of scrolling back.
+
+`peek-end` returns the view early; it does nothing when no peek is in progress.
+
 #### `spawn`
 
 Run a program.

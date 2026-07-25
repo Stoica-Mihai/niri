@@ -3905,6 +3905,151 @@ prop_compose! {
     }
 }
 
+/// Single-window columns on one output, wide enough that the rightmost ones are off screen, with
+/// the first column focused so there is something to peek at.
+fn peek_test_layout() -> Layout<TestWindow> {
+    let options = Options {
+        layout: niri_config::Layout {
+            default_column_width: Some(PresetSize::Proportion(0.5)),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let mut layout = Layout::with_options(Clock::with_time(Duration::ZERO), options);
+
+    let mut ops = vec![Op::AddOutput(1)];
+    for id in 1..=5 {
+        ops.push(Op::AddWindow {
+            params: TestWindowParams {
+                bbox: Rectangle::from_size(Size::from((600, 400))),
+                ..TestWindowParams::new(id)
+            },
+        });
+        ops.push(Op::Communicate(id));
+    }
+    ops.push(Op::FocusColumnFirst);
+    check_ops_on_layout(&mut layout, ops);
+    layout
+}
+
+fn target_view_pos(layout: &Layout<TestWindow>) -> f64 {
+    layout
+        .active_workspace()
+        .unwrap()
+        .scrolling()
+        .target_view_pos()
+}
+
+#[test]
+fn peek_returns_the_view_and_leaves_focus_alone() {
+    let mut layout = peek_test_layout();
+    let resting = target_view_pos(&layout);
+    let focused = layout.focus().map(|win| *win.id());
+
+    layout.peek_column(PeekDirection::Right);
+    assert!(layout.is_peeking());
+    assert_ne!(
+        target_view_pos(&layout),
+        resting,
+        "peeking must scroll the view"
+    );
+    assert_eq!(
+        layout.focus().map(|win| *win.id()),
+        focused,
+        "peeking must not move focus"
+    );
+
+    layout.end_peek();
+    assert!(!layout.is_peeking());
+    assert_eq!(
+        target_view_pos(&layout),
+        resting,
+        "ending a peek must return to the resting view"
+    );
+}
+
+#[test]
+fn peek_steps_accumulate_and_still_return() {
+    let mut layout = peek_test_layout();
+    let resting = target_view_pos(&layout);
+
+    // Wander right twice, then back left once: one restore point covers all of it.
+    layout.peek_column(PeekDirection::Right);
+    layout.peek_column(PeekDirection::Right);
+    let far = target_view_pos(&layout);
+    layout.peek_column(PeekDirection::Left);
+    assert_ne!(
+        target_view_pos(&layout),
+        far,
+        "stepping left must move back"
+    );
+
+    layout.end_peek();
+    assert_eq!(target_view_pos(&layout), resting);
+}
+
+#[test]
+fn peek_past_the_last_column_keeps_the_session() {
+    let mut layout = peek_test_layout();
+    let resting = target_view_pos(&layout);
+
+    for _ in 0..8 {
+        layout.peek_column(PeekDirection::Right);
+    }
+    assert!(
+        layout.is_peeking(),
+        "running out of columns must not cancel"
+    );
+
+    layout.end_peek();
+    assert_eq!(target_view_pos(&layout), resting);
+}
+
+#[test]
+fn client_commits_do_not_cancel_a_peek() {
+    let mut layout = peek_test_layout();
+    let resting = target_view_pos(&layout);
+
+    layout.peek_column(PeekDirection::Right);
+    let peeked = target_view_pos(&layout);
+    assert_ne!(peeked, resting);
+
+    // update_window() normally scrolls the active column back into view, which would undo the peek
+    // on the next client commit — a blinking cursor is enough to trigger it.
+    check_ops_on_layout(&mut layout, [Op::Communicate(1), Op::Communicate(3)]);
+    assert!(layout.is_peeking());
+    assert_eq!(
+        target_view_pos(&layout),
+        peeked,
+        "a client commit must not snap the view back while peeking"
+    );
+
+    layout.end_peek();
+    assert_eq!(target_view_pos(&layout), resting);
+}
+
+#[test]
+fn changing_the_active_column_cancels_a_peek() {
+    let mut layout = peek_test_layout();
+
+    layout.peek_column(PeekDirection::Right);
+    let peeked = target_view_pos(&layout);
+
+    // The stored offset is relative to the active column, so activating another one must drop it
+    // rather than snap the view somewhere stale later.
+    check_ops_on_layout(&mut layout, [Op::FocusColumnRight]);
+    assert!(!layout.is_peeking());
+
+    let after_focus = target_view_pos(&layout);
+    layout.end_peek();
+    assert_eq!(
+        target_view_pos(&layout),
+        after_focus,
+        "ending a cancelled peek must do nothing"
+    );
+    let _ = peeked;
+}
+
 /// Sets up three named workspaces on one output, each with a window: `ws1` and `ws2` carry the
 /// given `background-render-fps` settings, `ws3` never does. `ws3` is left focused, so `ws1` and
 /// `ws2` are hidden.
