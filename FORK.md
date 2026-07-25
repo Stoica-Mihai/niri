@@ -163,5 +163,9 @@ is the only way to exercise the modifier-release trigger (IPC has no modifiers t
 - **CI binary release:** `.github/workflows/fork-release.yml` — push a tag `mcs-v<rev>`
   (or run it manually) to build in an Arch container and attach the binary to a GitHub
   Release. Arch/CachyOS-targeted; if library drift breaks it, fall back to `build-fork.sh`.
-  Its `verify-ci` job waits for `ci.yml` on the same commit and aborts unless it concluded
-  `success`, so a tag can't publish a binary built from red code.
+  Its `verify-ci` job waits for `ci.yml` on the same commit and aborts unless `test`, `clippy`,
+  `rustfmt`, `msrv` and `check feature combinations` all succeeded, so a tag can't publish a binary
+  built from red code. It accepts a job as green from *any* run of that commit (a branch push and a
+  tag push each produce one), and deliberately ignores upstream's cross-platform jobs — the freebsd
+  one runs a third-party VM action that fails on its own infrastructure often enough to block
+  releases while saying nothing about an Arch binary.
