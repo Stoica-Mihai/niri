@@ -11,7 +11,7 @@ Not intended for upstream merge. See per-feature notes for rationale.
 |---|---|---|---|
 | Per-workspace background render | `background-render-fps <N \| "auto">` on a named `workspace {}` | off (stock 1 Hz idle floor) | `28f597f9`, `a6464c73` |
 | Restore view on un-maximize | `restore-view-on-unmaximize` in `layout {}` | off (stock re-aligns the view) | see below |
-| Hold-to-peek | `peek-column-left` / `peek-column-right` / `peek-end` actions | n/a (bind them to use) | see below |
+| Hold-to-peek | `peek-column-left` / `-right` / `-first` / `-last` / `peek-end` actions | n/a (bind them to use) | see below |
 
 ---
 
@@ -96,6 +96,8 @@ you started from.
 binds {
     Mod+Alt+H repeat=false { peek-column-left; }
     Mod+Alt+L repeat=false { peek-column-right; }
+    Mod+Alt+U repeat=false { peek-column-first; }
+    Mod+Alt+I repeat=false { peek-column-last; }
 }
 ```
 
@@ -103,6 +105,9 @@ Steps accumulate: hold the modifier and keep tapping to wander in either directi
 return — there is only ever one restore point. Columns already fully on screen are skipped, so a
 press always reveals something. `peek-end` returns early; changing the active column, closing a
 window or switching workspace ends the peek in place rather than scrolling back.
+`peek-column-first` / `peek-column-last` jump the peek to the leftmost / rightmost column
+(vim `gg` / `G`); they join the same session, so releasing the modifier still returns to the
+one offset you started from.
 
 **How:** `ScrollingSpace::peek_column` stores the current view offset once, then animates to the
 minimum offset that brings the target column into view, rebased onto the active column — which
