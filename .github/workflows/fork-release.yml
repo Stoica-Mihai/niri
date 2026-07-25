@@ -90,18 +90,35 @@ jobs:
           cd target/release
           tar czf "$GITHUB_WORKSPACE/niri-${{ steps.v.outputs.ver }}-x86_64-arch.tar.gz" niri
 
+      # Generated, not hardcoded: naming specific features here goes stale the moment the fork
+      # gains another one.
+      - name: Compose release notes
+        run: |
+          PREV=$(git tag --list 'mcs-v*' --sort=-creatordate \
+                 | grep -Fxv "${{ steps.v.outputs.tag }}" | head -1)
+          {
+            echo "Fork build of niri. The fork-only features and their config options are" \
+                 "documented in [FORK.md](https://github.com/${{ github.repository }}/blob/main/FORK.md)."
+            echo
+            echo "Version: \`${{ steps.v.outputs.ver }}\`. Built in an Arch Linux container (glibc),"
+            echo "so it targets Arch/CachyOS. If it fails to run due to library drift, build locally"
+            echo "with \`./build-fork.sh\` — that always matches your system."
+            echo
+            echo "Install: \`sudo install -Dm755 niri /usr/local/bin/niri\`, then relog."
+            if [ -n "$PREV" ]; then
+              echo
+              echo "### Changes since $PREV"
+              echo
+              git log --no-merges --pretty='- %s' "$PREV..HEAD"
+            fi
+          } > release-notes.md
+          cat release-notes.md
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.v.outputs.tag }}
           name: niri ${{ steps.v.outputs.ver }}
-          body: |
-            Fork build of niri with the `background-render-fps` feature.
-
-            Version: `${{ steps.v.outputs.ver }}`. Built in an Arch Linux container
-            (glibc), so it targets Arch/CachyOS. If it fails to run due to library
-            drift, build locally with `./build-fork.sh` — that always matches your system.
-
-            Install: `sudo install -Dm755 niri /usr/local/bin/niri`, then relog.
+          body_path: release-notes.md
           files: niri-*-x86_64-arch.tar.gz
           fail_on_unmatched_files: true
