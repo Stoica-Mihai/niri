@@ -1053,6 +1053,16 @@ impl State {
                 // FIXME: granular
                 self.niri.queue_redraw_all();
             }
+            Action::PeekColumnFirst => {
+                self.niri.layout.peek_column_first();
+                // FIXME: granular
+                self.niri.queue_redraw_all();
+            }
+            Action::PeekColumnLast => {
+                self.niri.layout.peek_column_last();
+                // FIXME: granular
+                self.niri.queue_redraw_all();
+            }
             Action::PeekEnd => {
                 self.niri.layout.end_peek();
                 // FIXME: granular

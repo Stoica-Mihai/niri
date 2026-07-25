@@ -346,6 +346,14 @@ pub enum Action {
     ///
     /// Ends with `PeekEnd`, which returns the view to where the peek started.
     PeekColumnRight {},
+    /// Scroll the view to the first column without moving focus.
+    ///
+    /// Ends with `PeekEnd`, which returns the view to where the peek started.
+    PeekColumnFirst {},
+    /// Scroll the view to the last column without moving focus.
+    ///
+    /// Ends with `PeekEnd`, which returns the view to where the peek started.
+    PeekColumnLast {},
     /// Return the view to where the ongoing peek started.
     PeekEnd {},
     /// Focus the first column.
