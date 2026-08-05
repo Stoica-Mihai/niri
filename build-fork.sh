@@ -15,13 +15,13 @@ echo ">> building niri fork $VER"
 touch src/utils/mod.rs
 NIRI_BUILD_VERSION_STRING="$VER" cargo build --release
 
-echo ">> installing to /usr/local/bin/niri (sudo)"
-sudo install -Dm755 target/release/niri /usr/local/bin/niri
-
-# Also shadow the packaged niri-session: ours names the variables for
-# import-environment, which systemd >= 256 warns about otherwise.
-echo ">> installing to /usr/local/bin/niri-session (sudo)"
-sudo install -Dm755 resources/niri-session /usr/local/bin/niri-session
+# dist-files.txt is the single source of truth for what an install consists of; the release
+# workflow packages the same list.
+while read -r file; do
+    case "$file" in ''|\#*) continue ;; esac
+    echo ">> installing to /usr/local/bin/$(basename "$file") (sudo)"
+    sudo install -Dm755 "$file" "/usr/local/bin/$(basename "$file")"
+done < dist-files.txt
 
 echo ">> installed: $(/usr/local/bin/niri --version)"
 echo ">> log out / back in to activate the new binary"

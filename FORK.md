@@ -190,8 +190,12 @@ Small enough to be worth sending upstream, unlike the feature work here.
   `github.repository == 'niri-wm/niri'`. They fire on pushes to `main`, and on a fork they would
   republish niri's docs site to `gh-pages` under this account and fail on the uninitialized wiki.
 - **CI binary release:** `.github/workflows/fork-release.yml` — push a tag `mcs-v<rev>`
-  (or run it manually) to build in an Arch container and attach the binary to a GitHub
-  Release. Arch/CachyOS-targeted; if library drift breaks it, fall back to `build-fork.sh`.
+  (or run it manually) to build in an Arch container and attach a tarball to a GitHub Release.
+  The tarball is a complete install: `niri`, `niri-session` and an `install.sh` that places both in
+  `/usr/local/bin`. Arch/CachyOS-targeted; if library drift breaks it, fall back to `build-fork.sh`.
+- **`dist-files.txt`** lists what an install consists of. Both `build-fork.sh` and the release
+  workflow read it, so the local and release install paths can't drift — they did once, when
+  `niri-session` joined the local install but not the tarball.
   Its `verify-ci` job waits for `ci.yml` on the same commit and aborts unless `test`, `clippy`,
   `rustfmt`, `msrv` and `check feature combinations` all succeeded, so a tag can't publish a binary
   built from red code. It accepts a job as green from *any* run of that commit (a branch push and a

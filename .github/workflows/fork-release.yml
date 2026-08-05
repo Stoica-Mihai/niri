@@ -110,10 +110,19 @@ jobs:
       - name: Build
         run: NIRI_BUILD_VERSION_STRING="${{ steps.v.outputs.ver }}" cargo build --release --locked
 
+      # Package exactly what build-fork.sh installs, plus an installer, so a release is a complete
+      # install on its own. dist-files.txt keeps the two paths from drifting.
       - name: Package
         run: |
-          cd target/release
-          tar czf "$GITHUB_WORKSPACE/niri-${{ steps.v.outputs.ver }}-x86_64-arch.tar.gz" niri
+          mkdir -p dist
+          while read -r file; do
+            case "$file" in ''|\#*) continue ;; esac
+            cp "$file" "dist/$(basename "$file")"
+          done < dist-files.txt
+          cp resources/install-fork.sh dist/install.sh
+          chmod +x dist/install.sh
+          echo "tarball contents:"; ls -1 dist
+          tar czf "niri-${{ steps.v.outputs.ver }}-x86_64-arch.tar.gz" -C dist .
 
       # Generated, not hardcoded: naming specific features here goes stale the moment the fork
       # gains another one.
@@ -129,7 +138,9 @@ jobs:
             echo "so it targets Arch/CachyOS. If it fails to run due to library drift, build locally"
             echo "with \`./build-fork.sh\` — that always matches your system."
             echo
-            echo "Install: \`sudo install -Dm755 niri /usr/local/bin/niri\`, then relog."
+            echo "Install: extract and run \`./install.sh\`, then log out and back in. It places"
+            echo "\`niri\` and \`niri-session\` in \`/usr/local/bin\`, shadowing the packaged copies"
+            echo "(uninstall: \`sudo rm /usr/local/bin/niri /usr/local/bin/niri-session\`)."
             if [ -n "$PREV" ]; then
               echo
               echo "### Changes since $PREV"

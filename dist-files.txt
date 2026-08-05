@@ -1,0 +1,5 @@
+# Everything an install of this fork consists of, one repo-relative path per line.
+# Read by build-fork.sh (local install) and by .github/workflows/fork-release.yml (release
+# tarball), so the two can't drift apart. Each file lands in <prefix>/bin/<basename>.
+target/release/niri
+resources/niri-session
