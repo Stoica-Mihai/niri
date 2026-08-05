@@ -34,13 +34,19 @@ if hash systemctl >/dev/null 2>&1; then
 
     # Import the login manager environment.
     #
-    # systemd deprecated `import-environment` without arguments, so name the variables instead of
-    # relying on the implicit "everything" form. Derived from the actual environment to keep the
-    # same coverage, minus the shell bookkeeping that has no meaning for user units.
+    # systemd deprecated `import-environment` without arguments, so name the variables explicitly.
+    # Take them from awk's ENVIRON, like the dinit branch below: it is keyed by real variable names,
+    # so a value containing a newline cannot invent a name and names cannot repeat. Either of those
+    # makes systemd reject the *entire* import ("Invalid environment assignments"), which would
+    # leave every user unit with the pre-profile environment.
+    #
+    # Two filters are required. gawk adds AWKPATH and AWKLIBPATH of its own, which systemd reports
+    # as "not set, ignoring", and keys like BASH_FUNC_foo%% (exported shell functions) are not valid
+    # variable names, which also aborts the whole import.
     niri_env_vars=$(
-        awk 'BEGIN { for (name in ENVIRON) print name }' </dev/null |
+        awk 'BEGIN { for (name in ENVIRON) print name }' |
             grep -xE '[A-Za-z_][A-Za-z0-9_]*' |
-            grep -vxE 'PWD|OLDPWD|SHLVL|LINES|COLUMNS|_'
+            grep -vxE 'AWKPATH|AWKLIBPATH|PWD|OLDPWD|SHLVL|LINES|COLUMNS|_'
     )
     if [ -n "$niri_env_vars" ]; then
         # shellcheck disable=SC2086 # deliberate word splitting: one argument per variable name
