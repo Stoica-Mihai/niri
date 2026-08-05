@@ -193,6 +193,13 @@ Small enough to be worth sending upstream, unlike the feature work here.
   (or run it manually) to build in an Arch container and attach a tarball to a GitHub Release.
   The tarball is a complete install: `niri`, `niri-session` and an `install.sh` that places both in
   `/usr/local/bin`. Arch/CachyOS-targeted; if library drift breaks it, fall back to `build-fork.sh`.
+- **glibc pins the release to recent systems.** The tarball is built in a CachyOS container (that's
+  where this machine's glibc comes from — Arch base, CachyOS optimized repos) and links against
+  whatever glibc it has, currently 2.44. A binary cannot run on an *older* glibc, so a system that
+  hasn't been updated recently gets `version 'GLIBC_2.44' not found` — which is what happened with
+  `mcs-v6` on glibc 2.43. The release notes record the version built against, and `install.sh`
+  refuses to install with that explanation rather than leaving a broken binary in place. Fix by
+  updating the system, or use `build-fork.sh`, which always matches it.
 - **`dist-files.txt`** lists what an install consists of. Both `build-fork.sh` and the release
   workflow read it, so the local and release install paths can't drift — they did once, when
   `niri-session` joined the local install but not the tarball.
