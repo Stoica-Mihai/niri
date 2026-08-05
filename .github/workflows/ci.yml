@@ -246,6 +246,10 @@ jobs:
       - run: cargo build --all
 
   freebsd:
+    # Fork: skipped. libdisplay-info-sys 0.3.0's build script rejects the libdisplay-info that
+    # FreeBSD ports provides, so this fails on every push for a platform this fork never targets —
+    # a permanent red X on otherwise green runs. Releases already ignore it (see fork-release.yml).
+    if: github.repository == 'niri-wm/niri'
     runs-on: ubuntu-24.04
     env:
       CARGO_HOME: /home/runner/work/niri/niri/cargo-home

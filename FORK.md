@@ -212,6 +212,8 @@ Small enough to be worth sending upstream, unlike the feature work here.
   Its `verify-ci` job waits for `ci.yml` on the same commit and aborts unless `test`, `clippy`,
   `rustfmt`, `msrv` and `check feature combinations` all succeeded, so a tag can't publish a binary
   built from red code. It accepts a job as green from *any* run of that commit (a branch push and a
-  tag push each produce one), and deliberately ignores upstream's cross-platform jobs — the freebsd
-  one runs a third-party VM action that fails on its own infrastructure often enough to block
-  releases while saying nothing about an Arch binary.
+  tag push each produce one), and deliberately ignores upstream's cross-platform jobs.
+- **The `freebsd` job is skipped on the fork** (gated on `github.repository`, like the publish jobs).
+  It failed two different ways here: the VM action losing its own ssh connection, and then
+  `libdisplay-info-sys 0.3.0` rejecting the `libdisplay-info` that FreeBSD ports ships. Neither says
+  anything about an Arch binary, and a permanent red X on every push trains you to ignore CI.
