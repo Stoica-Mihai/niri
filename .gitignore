@@ -7,3 +7,6 @@ docs/superpowers/
 
 # insta pending snapshots
 *.pending-snap
+
+# Claude Code local config
+.claude/
