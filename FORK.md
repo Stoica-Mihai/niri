@@ -12,6 +12,7 @@ Not intended for upstream merge. See per-feature notes for rationale.
 | Per-workspace background render | `background-render-fps <N \| "auto">` on a named `workspace {}` | off (stock 1 Hz idle floor) | `28f597f9`, `a6464c73` |
 | Restore view on un-maximize | `restore-view-on-unmaximize` in `layout {}` | off (stock re-aligns the view) | see below |
 | Hold-to-peek | `peek-column-left` / `-right` / `-first` / `-last` / `peek-end` actions | n/a (bind them to use) | see below |
+| Quiet session startup | none — `resources/niri-session` names the variables it imports | n/a (always on) | see below |
 
 ---
 
@@ -135,6 +136,32 @@ is the only way to exercise the modifier-release trigger (IPC has no modifiers t
 
 ---
 
+## Quiet session startup
+
+`niri-session` called `systemctl --user import-environment` with no arguments, which systemd
+deprecated in v256:
+
+```
+Calling import-environment without a list of variable names is deprecated
+```
+
+It appears at session start, before niri itself runs, so it lands in the login manager's output
+rather than `niri.service`'s journal. Purely cosmetic — the import still happens — but it's visible
+on every login.
+
+Ours derives the variable names from the environment and passes them explicitly, so the coverage is
+unchanged while the warning is gone. Shell bookkeeping (`PWD`, `OLDPWD`, `SHLVL`, `LINES`,
+`COLUMNS`, `_`) is filtered out, since it means nothing to user units. niri's own import in
+`src/main.rs` already named its variables and never warned.
+
+`build-fork.sh` installs the script to `/usr/local/bin/niri-session`, shadowing the packaged copy
+the same way the binary does — `niri.desktop` and greetd both invoke it by name, so PATH order
+decides. Reverting means removing that file too, not just the binary.
+
+Small enough to be worth sending upstream, unlike the feature work here.
+
+---
+
 ## Maintenance
 
 - **Remotes:** `origin` = upstream `niri-wm/niri` (fetch tags), `fork` = your GitHub fork
@@ -149,7 +176,9 @@ is the only way to exercise the modifier-release trigger (IPC has no modifiers t
   git push -f fork main            # keep the offsite backup current
   # log out / back in to activate the new binary
   ```
-- **Install model:** `/usr/local/bin/niri` shadows the packaged `/usr/bin/niri`; revert = `rm`.
+- **Install model:** `/usr/local/bin/niri` and `/usr/local/bin/niri-session` shadow the packaged
+  copies in `/usr/bin`; revert = `rm` both, plus deleting the fork-only config options (upstream
+  niri rejects unknown config nodes outright).
 
 ## Releases (CI)
 

@@ -18,5 +18,10 @@ NIRI_BUILD_VERSION_STRING="$VER" cargo build --release
 echo ">> installing to /usr/local/bin/niri (sudo)"
 sudo install -Dm755 target/release/niri /usr/local/bin/niri
 
+# Also shadow the packaged niri-session: ours names the variables for
+# import-environment, which systemd >= 256 warns about otherwise.
+echo ">> installing to /usr/local/bin/niri-session (sudo)"
+sudo install -Dm755 resources/niri-session /usr/local/bin/niri-session
+
 echo ">> installed: $(/usr/local/bin/niri --version)"
 echo ">> log out / back in to activate the new binary"

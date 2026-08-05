@@ -33,7 +33,19 @@ if hash systemctl >/dev/null 2>&1; then
     systemctl --user reset-failed
 
     # Import the login manager environment.
-    systemctl --user import-environment
+    #
+    # systemd deprecated `import-environment` without arguments, so name the variables instead of
+    # relying on the implicit "everything" form. Derived from the actual environment to keep the
+    # same coverage, minus the shell bookkeeping that has no meaning for user units.
+    niri_env_vars=$(
+        awk 'BEGIN { for (name in ENVIRON) print name }' </dev/null |
+            grep -xE '[A-Za-z_][A-Za-z0-9_]*' |
+            grep -vxE 'PWD|OLDPWD|SHLVL|LINES|COLUMNS|_'
+    )
+    if [ -n "$niri_env_vars" ]; then
+        # shellcheck disable=SC2086 # deliberate word splitting: one argument per variable name
+        systemctl --user import-environment $niri_env_vars
+    fi
 
     # DBus activation environment is independent from systemd. While most of
     # dbus-activated services are already using `SystemdService` directive, some
