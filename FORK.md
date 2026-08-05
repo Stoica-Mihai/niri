@@ -182,6 +182,12 @@ Small enough to be worth sending upstream, unlike the feature work here.
 
 ## Releases (CI)
 
+- **From a release:** `./install-release.sh` — fetches the latest tarball, unpacks it and runs its
+  `install.sh`. Takes an optional tag and prefix (`./install-release.sh mcs-v6 /tmp/x`).
+  `./install-release.sh --check` compares the release against the running compositor and prints the
+  verdict without downloading anything, exiting 0 when they match and 1 when they differ, so it
+  drops into a shell conditional. Uses `gh` when present; `NIRI_NO_GH=1` forces the plain-curl path,
+  which needs no authentication.
 - **Local (most reliable):** `./build-fork.sh [rev]` — builds + installs, version string
   `<niri-base>+mcs.<rev>`. Matches your exact system.
 - **CI build/test gate:** `.github/workflows/ci.yml` (inherited) builds + tests every push.
